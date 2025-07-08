@@ -1,5 +1,7 @@
 # 在线 Whois 查询
 
+![](img.jpg)
+
 这是一个可以部署在 Cloudflare Workers 上的 Whois 查询工具。它具有以下特点：
 
 - **私有部署**：不用再去用那些乱七八糟又有一堆广告的在线whois工具了。
