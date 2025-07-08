@@ -1,5 +1,9 @@
 {
-  "dependencies": {
-    "wrangler": "^4.23.0"
-  }
+	"dependencies": {
+		"wrangler": "^4.23.0"
+	},
+	"scripts": {
+		"build": "wrangler build",
+		"dev": "wrangler dev"
+	}
 }

@@ -1,5 +1,7 @@
 import indexHTML from "../public/index.html";
 import url from "node:url";
+import net from "node:net";
+import fallback from "./fallback.js";
 
 export default {
 	async fetch(request, env, ctx) {
@@ -33,7 +35,8 @@ async function queryWhois(request) {
 	let domain = new URL(request.url).searchParams.get("domain");
 	if (!domain) {
 		return {
-			error: "Domain parameter is required",
+			code: -1,
+			msg: "域名不能为空！",
 		};
 	}
 
@@ -41,9 +44,117 @@ async function queryWhois(request) {
 
 	if (!domain || !/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) {
 		return {
-			error: "Invalid domain format",
+			code: -1,
+			msg: "域名格式不正确！",
 		};
 	}
 
-	return "fuck";
+	let result = null;
+	let result2 = null;
+	let whoisServer = null;
+	const domainSuffix = domain.split(".").slice(-1)[0] || null;
+	try {
+		result = await whois(domainSuffix, "whois.iana.org");
+		if (!result) {
+			return {
+				code: -1,
+				msg: "无法获取 WHOIS 服务器数据",
+			};
+		}
+		whoisServer = result.match(/whois:\s*(\S+)\n/i);
+		if (!whoisServer || !whoisServer[1]) {
+			console.log(findFallback(domainSuffix), domainSuffix);
+			if (!(whoisServer = findFallback(domainSuffix))) {
+				return {
+					code: 2,
+					msg: "未找到此域名的 WHOIS 服务器",
+					data: {
+						whoisData: result,
+						domainData: "此域名没有 WHOIS 服务器",
+						domainSuffix,
+					},
+				};
+			}
+		} else whoisServer = whoisServer[1];
+
+		let queryDomain = domain;
+		if (domainSuffix === "jp") {
+			// queryDomain = domain + "/e";
+		}
+		try {
+			result2 = await whois(queryDomain, whoisServer);
+		} catch (error) {
+			if (error.code === "ECONNREFUSED") {
+				return {
+					code: -2,
+					msg: "无法连接到 WHOIS 服务器: " + whoisServer,
+					result1: result,
+					result2: result2,
+					whoisServer,
+				};
+			} else {
+				return {
+					code: -3,
+					msg: `访问此域名的 WHOIS 服务器 ${whoisServer} 时出现了错误: \n${error.message}`,
+					result1: result,
+					result2: result2,
+					whoisServer,
+				};
+			}
+		}
+	} catch (error) {
+		return {
+			code: -22,
+			msg: "无法获取 WHOIS 数据: " + error.message,
+			result1: result,
+			result2: result2,
+			whoisServer,
+		};
+	}
+
+	return {
+		code: 1,
+		data: {
+			whoisData: result,
+			domainData: result2,
+			domainSuffix,
+		},
+	};
+}
+
+function whois(domain, server = "whois.iana.org") {
+	return new Promise((resolve, reject) => {
+		const client = new net.Socket();
+		let result = "";
+
+		client.connect(43, server, () => {
+			client.write(domain + "\r\n");
+		});
+
+		client.on("data", (data) => {
+			result += data.toString();
+		});
+
+		client.on("end", () => {
+			result = result
+				.trim()
+				.split("\n")
+				.map((line) => line.trim())
+				.join("\n");
+			resolve(result);
+		});
+
+		client.on("error", (err) => {
+			reject(err);
+		});
+	});
+}
+
+function findFallback(suffix) {
+	for (const entry of fallback) {
+		if (entry[0].includes("." + suffix)) {
+			return entry[1];
+		}
+	}
+	return null;
 }

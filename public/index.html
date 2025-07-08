@@ -19,7 +19,7 @@
 			}
 
 			.container {
-				max-width: 800px;
+				max-width: 1200px;
 				margin: 0 auto;
 				background: rgba(255, 255, 255, 0.95);
 				backdrop-filter: blur(10px);
@@ -148,6 +148,13 @@
 				color: #2c3e50;
 			}
 
+			.result-title code {
+				background: rgba(0, 0, 0, 0.1);
+				padding: 5px;
+				border-radius: 5px;
+				border: 1px solid #d0d0d0;
+			}
+
 			.copy-btn {
 				padding: 8px 16px;
 				background: #27ae60;
@@ -168,14 +175,24 @@
 				border: 1px solid #e9ecef;
 				border-radius: 8px;
 				padding: 20px;
-				font-family: "Courier New", monospace;
+				font-family:
+					ui-monospace,
+					SFMono-Regular,
+					SF Mono,
+					Menlo,
+					Consolas,
+					Liberation Mono,
+					monospace !important;
 				font-size: 14px;
 				line-height: 1.6;
 				white-space: pre-wrap;
 				word-wrap: break-word;
-				max-height: 500px;
+				/* max-height: 90dvh; */
 				overflow-y: auto;
 				color: #2c3e50;
+				width: 100%;
+				resize: vertical;
+				outline: none;
 			}
 
 			.error-result {
@@ -263,11 +280,21 @@
 					<div class="result-title">查询结果</div>
 					<button class="copy-btn" id="copyBtn">复制结果</button>
 				</div>
-				<div class="result-content" id="resultContent"></div>
+				<textarea class="result-content" rows="100" id="resultContent"></textarea>
+				<div id="result2">
+					<div class="result-header" style="margin-top: 20px">
+						<div class="result-title">关于 <code id="domainSuffix">.com</code> 域名的查询结果</div>
+						<button class="copy-btn" id="copyBtn2">复制结果</button>
+					</div>
+					<textarea class="result-content" rows="100" id="resultContent2"></textarea>
+				</div>
 			</div>
 
 			<div class="footer">
-				<p>Copyright © 2077 <a href="https://dark495.me/" target="_blank" rel="noopener noreferrer">dark495</a></p>
+				<p>
+					Copyright © 2077 <a href="https://dark495.me/" target="_blank" rel="noopener noreferrer">dark495</a> |
+					<a href="https://github.com/xlch88/whois-query" target="_blank">Github</a>
+				</p>
 			</div>
 		</div>
 
@@ -280,7 +307,9 @@
 					this.loading = document.getElementById("loading");
 					this.resultContainer = document.getElementById("resultContainer");
 					this.resultContent = document.getElementById("resultContent");
+					this.resultContent2 = document.getElementById("resultContent2");
 					this.copyBtn = document.getElementById("copyBtn");
+					this.copyBtn2 = document.getElementById("copyBtn2");
 
 					this.init();
 				}
@@ -293,7 +322,8 @@
 						}
 					});
 					this.domainInput.addEventListener("input", () => this.clearError());
-					this.copyBtn.addEventListener("click", () => this.copyResult());
+					this.copyBtn.addEventListener("click", () => this.copyResult(1));
+					this.copyBtn2.addEventListener("click", () => this.copyResult(2));
 				}
 
 				validateDomain(domain) {
@@ -343,21 +373,32 @@
 					this.queryBtn.textContent = "查询";
 				}
 
-				showResult(data, isError = false) {
+				showResult(data, errCode = 1) {
 					this.resultContainer.style.display = "block";
-					this.resultContent.textContent = data;
 
-					if (isError) {
+					if (errCode < 1) {
 						this.resultContent.classList.add("error-result");
+						this.resultContent.value = data;
+						document.getElementById("result2").style.display = "none";
 					} else {
-						this.resultContent.classList.remove("error-result");
+						document.getElementById("domainSuffix").textContent = "." + data.domainSuffix || ".com";
+						this.resultContent.value = data.domainData;
+						if (errCode > 1) {
+							this.resultContent.classList.add("error-result");
+						} else {
+							this.resultContent.classList.remove("error-result");
+						}
+
+						this.resultContent2.value = data.whoisData || data;
+						document.getElementById("result2").style.display = "block";
 					}
 
-					// 滚动到结果区域
-					this.resultContainer.scrollIntoView({ behavior: "smooth" });
+					this.resultContent.rows = this.resultContent.value.split("\n").length;
+					this.resultContent2.rows = this.resultContent2.value.split("\n").length;
 				}
 
 				async handleQuery() {
+					if (!this.domainInput.value) this.domainInput.value = "example.com";
 					const domain = this.domainInput.value.trim().toLowerCase();
 
 					this.clearError();
@@ -377,27 +418,33 @@
 							throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 						}
 
-						const data = await response.text();
-						this.showResult(data);
+						const data = await response.json();
+						if (data.code < 1) {
+							this.showResult(`查询失败: ${data.msg} (${data.code})`, 0);
+							return;
+						}
+
+						this.showResult(data.data, data.code);
 					} catch (error) {
 						console.error("查询失败:", error);
-						this.showResult(`查询失败: ${error.message}`, true);
+						this.showResult(`查询失败: ${error.message}`, 0);
 					} finally {
 						this.hideLoading();
 					}
 				}
 
-				async copyResult() {
+				async copyResult(type) {
 					try {
-						await navigator.clipboard.writeText(this.resultContent.textContent);
+						const btn = type === 1 ? this.copyBtn : this.copyBtn2;
+						await navigator.clipboard.writeText(this.resultContent.value);
 
-						const originalText = this.copyBtn.textContent;
-						this.copyBtn.textContent = "已复制!";
-						this.copyBtn.style.background = "#27ae60";
+						const originalText = btn.textContent;
+						btn.textContent = "已复制!";
+						btn.style.background = "#27ae60";
 
 						setTimeout(() => {
-							this.copyBtn.textContent = originalText;
-							this.copyBtn.style.background = "#27ae60";
+							btn.textContent = originalText;
+							btn.style.background = "";
 						}, 2000);
 					} catch (error) {
 						console.error("复制失败:", error);
