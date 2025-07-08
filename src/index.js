@@ -74,18 +74,15 @@ async function queryWhois(request) {
 		}
 		whoisServer = result.match(/whois:\s*(\S+)\n/i);
 		if (!whoisServer || !whoisServer[1]) {
-			console.log(findFallback(domainSuffix), domainSuffix);
-			if (!(whoisServer = findFallback(domainSuffix))) {
-				return {
-					code: 2,
-					msg: "未找到此域名的 WHOIS 服务器",
-					data: {
-						whoisData: result,
-						domainData: "此域名没有 WHOIS 服务器",
-						domainSuffix,
-					},
-				};
-			}
+			return {
+				code: 2,
+				msg: "未找到此域名的 WHOIS 服务器",
+				data: {
+					whoisData: result,
+					domainData: "此域名没有 WHOIS 服务器",
+					domainSuffix,
+				},
+			};
 		} else whoisServer = whoisServer[1];
 
 		let queryDomain = domain;
@@ -175,13 +172,4 @@ function rwhois(host, query) {
 		sock.on("end", () => resolve(buf));
 		sock.on("error", reject);
 	});
-}
-
-function findFallback(suffix) {
-	for (const entry of fallback) {
-		if (entry[0].includes("." + suffix)) {
-			return entry[1];
-		}
-	}
-	return null;
 }
