@@ -40,6 +40,17 @@ async function queryWhois(request) {
 		};
 	}
 
+	if (domain.startsWith("http://") || domain.startsWith("https://")) {
+		try {
+			domain = new URL(domain).hostname;
+		} catch (e) {
+			return {
+				code: -1,
+				msg: "域名格式不正确！",
+			};
+		}
+	}
+
 	domain = url.domainToASCII(String(domain).trim());
 
 	if (!domain || !/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) {
@@ -147,6 +158,22 @@ function whois(domain, server = "whois.iana.org") {
 		client.on("error", (err) => {
 			reject(err);
 		});
+	});
+}
+
+function rwhois(host, query) {
+	return new Promise((resolve, reject) => {
+		console.log("Connecting to RWHOIS server:", host);
+		const sock = net.createConnection(4321, host, () => {
+			sock.write("-rwhois 1.5\r\n");
+			sock.write(query + "\r\n");
+			sock.write("-quit\r\n");
+		});
+		console.log("Connected to RWHOIS server:", host);
+		let buf = "";
+		sock.on("data", (d) => (buf += d));
+		sock.on("end", () => resolve(buf));
+		sock.on("error", reject);
 	});
 }
 
