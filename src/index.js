@@ -1,7 +1,6 @@
 import indexHTML from "../public/index.html";
 import url from "node:url";
 import net from "node:net";
-import fallback from "./fallback.js";
 
 export default {
 	async fetch(request, env, ctx) {
