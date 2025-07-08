@@ -426,6 +426,10 @@
 
 						this.showResult(data.data, data.code);
 					} catch (error) {
+						if (error.message.includes("HTTP 403")) {
+							this.showError("您可能需要刷新页面以通过Cloudflare的验证。");
+							return;
+						}
 						console.error("查询失败:", error);
 						this.showResult(`查询失败: ${error.message}`, 0);
 					} finally {
