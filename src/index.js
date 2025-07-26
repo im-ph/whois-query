@@ -68,7 +68,7 @@ async function queryWhois(request) {
 		if (!result) {
 			return {
 				code: -1,
-				msg: "无法获取 WHOIS 服务器数据",
+				msg: "无法获取 WHOIS 服务器数据。",
 			};
 		}
 		whoisServer = result.match(/whois:\s*(\S+)\n/i);
@@ -78,7 +78,7 @@ async function queryWhois(request) {
 				msg: "未找到此域名的 WHOIS 服务器",
 				data: {
 					whoisData: result,
-					domainData: "此域名没有 WHOIS 服务器",
+					domainData: "此域名没有 WHOIS 服务器。",
 					domainSuffix,
 				},
 			};
